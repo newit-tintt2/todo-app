@@ -13,7 +13,7 @@ import '../screens/create_task.dart';
 import 'edit_task.dart';
 
 class HomePage extends StatefulWidget {
-  // const HomePage({super.key});
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -52,15 +52,15 @@ class _HomePageState extends State<HomePage> {
   // final _controller = TextEditingController();
   // checkbox was tapped
   void checkBoxChanged(int index) {
-    final text = db.toDoList[index].title;
+    // final text = db.toDoList[index].title;
     bloc.add(TodoClickCheckBoxEvent(index, db));
     setState(() {
       // db.toDoList[index].isDone = !db.toDoList[index].isDone;
     });
-    notificationsServices.showNotification(
-      'Change properties',
-      '$text attribute has been changed',
-    );
+    // notificationsServices.showNotification(
+    //   'Change properties',
+    //   '$text attribute has been changed',
+    // );
     // db.updateDataBase();
   }
 
@@ -82,13 +82,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void scheduleExpirations(int index) {
-    final text = db.toDoList[index].title;
-    notificationsServices.showNotification(
-      'Schedule Notifications',
-      '$text is overdue to create schedule',
-    );
-  }
+  // void scheduleExpirations(int index) {
+  //   final text = db.toDoList[index].title;
+  //   notificationsServices.showNotification(
+  //     'Schedule Notifications',
+  //     '$text is overdue to create schedule',
+  //   );
+  // }
 
   // delete task
   void deleteTask(int index) {
@@ -122,114 +122,127 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<TodoBloc, TodoState>(
-      listener: (context, state) {
-        if (state is NavigativeTodotoCreate) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateNewTask(
-                  todoBloc: bloc,
-                  ),
-            ),
-          );
-        } else if (state is NavigativeTodotoEdit) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EditTask(
-                todo: state.todo,
-                index: state.index,
-                todoBloc: bloc,
-              ),
-            ),
-          );
-        } else if (state is TodoClickCreate) {
-          Navigator.of(context).pop(state);
-          setState(() {});
+    return GestureDetector(
+      onTap: () {
+        FocusScopeNode currentFocus = FocusScope.of(context);
+        if (!currentFocus.hasPrimaryFocus) {
+          currentFocus.unfocus();
         }
       },
-      bloc: bloc,
-      listenWhen: (previous, current) => current is TodoActionState,
-      buildWhen: (previous, current) => current is! TodoActionState,
-      builder: (context, state) {
-        switch (state.runtimeType) {
-          case TodoLoadingState:
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+      child: BlocConsumer<TodoBloc, TodoState>(
+        listener: (context, state) {
+          if (state is NavigativeTodotoCreate) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateNewTask(
+                  todoBloc: bloc,
+                ),
+              ),
             );
-          case TodoLoadSuccessState:
-            final successState = state as TodoLoadSuccessState;
-            return Scaffold(
-              backgroundColor: Colors.yellow[200],
-              appBar: AppBar(
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          } else if (state is NavigativeTodotoEdit) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditTask(
+                  todo: state.todo,
+                  index: state.index,
+                  todoBloc: bloc,
+                ),
+              ),
+            );
+          } else if (state is TodoClickCreate) {
+            Navigator.of(context).pop(state);
+            setState(() {});
+          }
+        },
+        bloc: bloc,
+        listenWhen: (previous, current) => current is TodoActionState,
+        buildWhen: (previous, current) => current is! TodoActionState,
+        builder: (context, state) {
+          switch (state.runtimeType) {
+            case TodoLoadingState:
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            case TodoLoadSuccessState:
+              final successState = state as TodoLoadSuccessState;
+              return Scaffold(
+                backgroundColor: Colors.yellow[200],
+                appBar: AppBar(
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('TO DO APP'),
+                      InkWell(
+                        onTap: () {
+                          notificationsServices.stopNotifications();
+                          notificationsServices.showNotification(
+                            'Cancel Schedule',
+                            'All Schedules have been canceled',
+                          );
+                        },
+                        child: const Icon(Icons.notifications_off),
+                      ),
+                    ],
+                  ),
+                  elevation: 0,
+                ),
+                floatingActionButton: FloatingActionButton(
+                  onPressed: () async {
+                    bloc.add(NavigativeTodotoCreateEvent());
+                  },
+                  child: const Icon(Icons.add),
+                ),
+                body: Column(
                   children: [
-                    const Text('TO DO APP'),
-                    InkWell(
-                      onTap: () {
-                        notificationsServices.stopNotifications();
-                        notificationsServices.showNotification(
-                          'Cancel Schedule',
-                          'All Schedules have been canceled',
-                        );
-                      },
-                      child: const Icon(Icons.notifications_off),
+                    Container(
+                      margin: const EdgeInsets.only(
+                        top: 10,
+                      ),
+                      child: Center(
+                        child: Chip(
+                          label: Text(
+                            '${successState.todo.length} task',
+                            // '',
+                          ),
+                        ),
+                      ),
+                    ),
+                    SearchBox(
+                      runFilter: (value) => runFilter(value),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _foundToDo.length,
+                        itemBuilder: (context, index) {
+                          return ToDoTile(
+                            index: index,
+                            todo: _foundToDo[index],
+                            onChanged: (context) => checkBoxChanged(index),
+                            deleteFunction: (context) => deleteTask(index),
+                            scheduleFunction: () => createSchedule(index),
+                            // scheduleExpiration: () => scheduleExpirations(index),
+                            // editFunction: (context) => editTask(index),
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
-                elevation: 0,
-              ),
-              floatingActionButton: FloatingActionButton(
-                onPressed: () async {
-                  bloc.add(NavigativeTodotoCreateEvent());
-                },
-                child: const Icon(Icons.add),
-              ),
-              body: Column(
-                children: [
-                  Center(
-                    child: Chip(
-                      label: Text(
-                        '${successState.todo.length} task',
-                        // '',
-                      ),
-                    ),
-                  ),
-                  searchBox(
-                    runFilter: (value) => runFilter(value),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _foundToDo.length,
-                      itemBuilder: (context, index) {
-                        return ToDoTile(
-                          index: index,
-                          todo: _foundToDo[index],
-                          onChanged: (context) => checkBoxChanged(index),
-                          deleteFunction: (context) => deleteTask(index),
-                          scheduleFunction: () => createSchedule(index),
-                          scheduleExpiration: () => scheduleExpirations(index),
-                          // editFunction: (context) => editTask(index),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              drawer: const Drawer_navbar(),
-            );
-          case TodoErrorState:
-            return const Scaffold(
-              body: Center(
-                child: Text('ERROR'),
-              ),
-            );
-          default:
-            return const SizedBox();
-        }
-      },
+                drawer: const Drawer_navbar(),
+              );
+            case TodoErrorState:
+              return const Scaffold(
+                body: Center(
+                  child: Text('ERROR'),
+                ),
+              );
+            default:
+              return const SizedBox();
+          }
+        },
+      ),
     );
   }
 }
